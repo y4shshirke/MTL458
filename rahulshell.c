@@ -52,6 +52,59 @@ int prsePipe(char* inputCmd, char** inputParsed){
     }
 }
 
+void changeDirectory(char **inputParse){
+    if(inputParse[1][0]=='~'){
+            getDirectory(lastDirectory);
+            chdir(getenv("HOME"));
+    }
+    else if(!strcmp(inputParse[1],"-")){
+        char temp[2049];
+        getDirectory(temp);
+
+        if(chdir(lastDirectory)<0){
+            printf("There is no last used Directory or The File Path Does not exist for 1st Command\n");
+        }
+
+        for(int i=0;i<2049;i++){
+            lastDirectory[i]=temp[i];
+        }  
+    }
+    else{
+        getDirectory(lastDirectory);
+        if(chdir(inputParse[1])<0){
+            printf("The File Path Does not exist for 1st Command\n");
+        }     
+    }
+    return;
+}
+
+void history(char **inputParse){
+    if(inputParse[1]==NULL){
+        for(int i=0;i<= bufferPointer-2;i++){
+            printf("%s\n",historyBuffer[i]);
+        }
+    }
+    else{
+        if(strlen(inputParse[1])==1 && inputParse[1][0]=='0'){
+            exit(0);
+        }
+        int last= atoi(inputParse[1]);
+        if(last<=0){
+           printf("%s\n","Invalid History Command"); 
+           exit(0);
+        }
+        
+        int start= bufferPointer-last-1;
+        if(start<0){
+            start=0;
+        }
+        for(int i=start;i<=bufferPointer-2;i++){
+            printf("%s\n",historyBuffer[i]);
+        }
+    }
+    return;
+}
+
 void execPipeInput(char* inp, char** inputParse, char** inputPipeParse, char** chkPipe){
     prse(chkPipe[0],inputParse);
     prse(chkPipe[1],inputPipeParse);
@@ -157,55 +210,11 @@ void execPipeInput(char* inp, char** inputParse, char** inputPipeParse, char** c
         }
         else if(!strcmp(inputPipeParse[0],"cd")){
             inputPipeParse[1]= &chkPipe[1][3];
-    
-            if(inputPipeParse[1][0]=='~'){
-                getDirectory(lastDirectory);
-                chdir(getenv("HOME"));
-            }
-            else if(!strcmp(inputPipeParse[1],"-")){
-                char temp[2049];
-                getDirectory(temp);
-    
-                if(chdir(lastDirectory)<0){
-                    printf("There is no last used Directory or The File Path Does not exist\n");
-                }
-    
-                for(int i=0;i<2049;i++){
-                    lastDirectory[i]=temp[i];
-                }  
-            }
-            else{
-                getDirectory(lastDirectory);
-                if(chdir(inputPipeParse[1])<0){
-                    printf("The File Path Does not exist\n");
-                }   
-            }
+            changeDirectory(inputPipeParse);
             return ;
         }
         else if(!strcmp(inputPipeParse[0],"history")){
-            if(inputPipeParse[1]==NULL){
-                for(int i=0;i<= bufferPointer-2;i++){
-                    printf("%s\n",historyBuffer[i]);
-                }
-            }
-            else{
-                if(strlen(inputPipeParse[1])==1 && inputPipeParse[1][0]=='0'){
-                    exit(0);
-                }
-                int last= atoi(inputPipeParse[1]);
-                if(last<=0){
-                   printf("%s\n","Invalid History Command"); 
-                   exit(0);
-                }
-                
-                int start= bufferPointer-last-1;
-                if(start<0){
-                    start=0;
-                }
-                for(int i=start;i<=bufferPointer-2;i++){
-                    printf("%s\n",historyBuffer[i]);
-                }
-            }
+            history(inputPipeParse);
             return; 
         }
     
@@ -241,7 +250,6 @@ void execPipeInput(char* inp, char** inputParse, char** inputPipeParse, char** c
         
     }
 
-
 void execInput(char* inputCommand, char** inputParse){
     prse(inputCommand,inputParse);
     if(!strcmp(inputParse[0],"exit")){
@@ -250,66 +258,18 @@ void execInput(char* inputCommand, char** inputParse){
     }
     else if(!strcmp(inputParse[0],"cd")){
         inputParse[1]= &inputCommand[3];
-
-        if(inputParse[1][0]=='~'){
-            getDirectory(lastDirectory);
-            chdir(getenv("HOME"));
-        }
-        else if(!strcmp(inputParse[1],"-")){
-            char temp[2049];
-            getDirectory(temp);
-
-            if(chdir(lastDirectory)<0){
-                printf("There is no last used Directory or The File Path Does not exist\n");
-            }
-
-            for(int i=0;i<2049;i++){
-                lastDirectory[i]=temp[i];
-            }  
-        }
-        else{
-            getDirectory(lastDirectory);
-            if(chdir(inputParse[1])<0){
-                printf("The File Path Does not exist\n");
-            }
-              
-        }
-
+        changeDirectory(inputParse);
         return ;
     }
 
-    int child1= fork();
+    pid_t child1= fork();
 
     if(child1<0){
         printf("Fork Failed");
     }
     else if(child1==0){
         if(!strcmp(inputParse[0],"history")){
-            if(inputParse[1]==NULL){
-                for(int i=0;i<= bufferPointer-2;i++){
-                    printf("%s\n",historyBuffer[i]);
-                }
-            }
-            else{
-                if(strlen(inputParse[1])==1 && inputParse[1][0]=='0'){
-                    exit(0);
-                }
-
-                int last= atoi(inputParse[1]);
-
-                if(last<=0){
-                   printf("%s\n","Invalid History Command"); 
-                   exit(0);
-                }
-                
-                int start= bufferPointer-last-1;
-                if(start<0){
-                    start=0;
-                }
-                for(int i=start;i<=bufferPointer-2;i++){
-                    printf("%s\n",historyBuffer[i]);
-                }
-            } 
+            history(inputParse);
         }
         else{
             if(execvp(inputParse[0],inputParse)<0){
@@ -351,7 +311,6 @@ int main()
         else{
             execPipeInput(inputCommand,inputParse,inputPipeParse,chkPipe);
         }
-           
 	}
     
 	return 0;
